@@ -3,11 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useMsal } from "@azure/msal-react";
 import { apiRequest } from "./auth/AuthConfig";
 
-// URL del backend: se puede sobreescribir con VITE_API_URL en un archivo .env
-// Ruta relativa "/api/v1": el proxy de Vite (vite.config.js) la reenvia a
-// http://localhost:8080 evitando CORS. NO poner "localhost:8080/..." aqui,
-// fetch lo interpretaria como URL invalida dentro del origen del frontend.
-const backendUrl = import.meta.env.VITE_API_URL || "https://0t16t89h07.execute-api.us-east-1.amazonaws.com/desarrallo/api/v1";
+const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
 
 export function TokenSender() {
     const { instance, accounts } = useMsal();
@@ -15,8 +11,6 @@ export function TokenSender() {
     const [apiResponse, setApiResponse] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // Adquiere el token: primero silencioso y, si requiere interaccion
-    // (ej. consentimiento de un scope nuevo), navega a Azure y vuelve.
     const acquireAccessToken = async () => {
         const request = {
             ...apiRequest,
@@ -34,7 +28,7 @@ export function TokenSender() {
         }
     };
 
-    const handleGetTokenAndCallApi = async () => {
+    const handleGetTokenAndCallApi = async (endpoint) => {
         if (accounts.length === 0) return;
 
         setLoading(true);
@@ -42,21 +36,18 @@ export function TokenSender() {
 
         try {
             const accessToken = await acquireAccessToken();
-            // Si es null, se inicio una redireccion a Azure: al volver, el
-            // efecto de abajo reejecuta esta funcion automaticamente.
             if (!accessToken) return;
             setTokenJWT(accessToken);
             console.log("Token JWT obtenido con éxito:", accessToken);
 
-            // Enviar el token al Backend / API Gateway mediante Authorization: Bearer
-            const res = await fetch(backendUrl, {
-                method: "GET",
+            // Nota: endpoint ya viene limpio (ej. "admin", "usuario", etc.)
+            const res = await fetch(`${backendUrl}/${endpoint}`, {
+                method: "GET", // Cambia a "POST" si tu backend lo exige en esa ruta específica
                 headers: {
                     "Authorization": `Bearer ${accessToken}`
                 }
             });
 
-            // El backend puede responder texto plano o JSON; se parsea de forma tolerante.
             const text = await res.text();
             let data;
             try {
@@ -79,12 +70,11 @@ export function TokenSender() {
         }
     };
 
-    // Si la pagina recargo por una redireccion de consentimiento, reejecuta
-    // automaticamente la llamada que quedo pendiente.
     useEffect(() => {
         if (sessionStorage.getItem("msal_pending_api_call") === "1") {
             sessionStorage.removeItem("msal_pending_api_call");
-            handleGetTokenAndCallApi();
+            // Nota: Si recarga por redirección, por defecto puedes llamar al endpoint base o admin
+            handleGetTokenAndCallApi("admin");
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -98,21 +88,45 @@ export function TokenSender() {
                 Haz clic para obtener tu Token JWT de Azure y enviarlo en el header <code style={{ background: '#eee', padding: '2px 4px' }}>Authorization: Bearer &lt;token&gt;</code>.
             </p>
 
+            {/* CORREGIDO: Se usa una función flecha () => handleGetTokenAndCallApi(...) en cada botón */}
             <button
-                onClick={handleGetTokenAndCallApi}
+                onClick={() => handleGetTokenAndCallApi("admin")}
                 disabled={loading}
-                style={{
-                    backgroundColor: '#107c10',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 18px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    marginTop: '10px'
-                }}
+                style={buttonStyle}
             >
-                {loading ? "Obteniendo Token..." : "Obtener Token y Enviar al Backend"}
+                {loading ? "Obteniendo Token..." : "Consultar al admin"}
+            </button>
+            
+            <button
+                onClick={() => handleGetTokenAndCallApi("usuario")}
+                disabled={loading}
+                style={buttonStyle}
+            >
+                {loading ? "Obteniendo Token..." : "Consultar user"}
+            </button>
+
+            <button
+                onClick={() => handleGetTokenAndCallApi("ambos-roles")}
+                disabled={loading}
+                style={buttonStyle}
+            >
+                {loading ? "Obteniendo Token..." : "Consultar ambos roles"}
+            </button>
+
+            <button
+                onClick={() => handleGetTokenAndCallApi("todos-roles")}
+                disabled={loading}
+                style={buttonStyle}
+            >
+                {loading ? "Obteniendo Token..." : "Consultar cualquier rol"}
+            </button>
+
+            <button
+                onClick={() => handleGetTokenAndCallApi("public")}
+                disabled={loading}
+                style={buttonStyle}
+            >
+                {loading ? "Obteniendo Token..." : "Consultar public"}
             </button>
 
             {tokenJWT && (
@@ -138,3 +152,16 @@ export function TokenSender() {
         </div>
     );
 }
+
+// Estilo auxiliar para no repetir código en los botones
+const buttonStyle = {
+    backgroundColor: '#107c10',
+    color: 'white',
+    border: 'none',
+    padding: '10px 18px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: '600',
+    marginTop: '10px',
+    marginRight: '8px'
+};
