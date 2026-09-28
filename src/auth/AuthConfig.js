@@ -42,8 +42,8 @@ export const apiRequest = {
 // Configuracion de la aplicacion cliente del user pool us-east-1_u22bP0W2s.
 // El backend valida este mismo issuer: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_u22bP0W2s
 export const cognitoAuthConfig = {
-    authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_u22bP0W2s",
-    client_id: "56t4jmnrbmllfp93n818329lq8",
+    authority: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_swkHU2Dbf",
+    client_id: "6guec3g1r44qonqo1ambjd9885",
     redirect_uri: "http://localhost:5173",
     response_type: "code",
     scope: "phone openid email",
@@ -51,7 +51,7 @@ export const cognitoAuthConfig = {
 
 // Dominio de la UI alojada (Hosted UI) del user pool, que es adonde Cognito manda
 // al usuario durante el login.
-export const cognitoDomain = "https://us-east-1u22bP0W2s.auth.us-east-1.amazoncognito.com";
+export const cognitoDomain = "https://us-east-1swkhu2dbf.auth.us-east-1.amazoncognito.com";
 
 // A donde regresa el usuario tras cerrar sesion. Debe estar incluida en las
 // "URL de salida de sesion permitidas" del cliente de la app en Cognito.
