@@ -1,17 +1,22 @@
 // src/TokenSender.jsx
 import React, { useState, useEffect } from 'react';
 import { useMsal } from "@azure/msal-react";
+import { useAuth } from "react-oidc-context";
 import { apiRequest } from "./auth/AuthConfig";
 
 const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
 
 export function TokenSender() {
     const { instance, accounts } = useMsal();
+    const cognito = useAuth();
     const [tokenJWT, setTokenJWT] = useState("");
     const [apiResponse, setApiResponse] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const acquireAccessToken = async () => {
+    const sesionAzure = accounts.length > 0;
+    const sesionCognito = cognito.isAuthenticated;
+
+    const acquireAccessTokenAzure = async () => {
         const request = {
             ...apiRequest,
             account: accounts[0]
@@ -28,8 +33,27 @@ export function TokenSender() {
         }
     };
 
+    // Cognito ya entrego el access token en la respuesta del canje del codigo y
+    // queda en el User del contexto. Solo hay que renovarlo si ya expiro.
+    const acquireAccessTokenCognito = async () => {
+        const usuario = cognito.user;
+        if (!usuario) return null;
+
+        if (!usuario.expired) {
+            return usuario.access_token;
+        }
+
+        console.warn("El access token de Cognito expiro, renovando en silencio...");
+        const usuarioRenovado = await cognito.signinSilent();
+        return usuarioRenovado?.access_token ?? null;
+    };
+
+    const acquireAccessToken = () => sesionAzure
+        ? acquireAccessTokenAzure()
+        : acquireAccessTokenCognito();
+
     const handleGetTokenAndCallApi = async (endpoint) => {
-        if (accounts.length === 0) return;
+        if (!sesionAzure && !sesionCognito) return;
 
         setLoading(true);
         setApiResponse("");
@@ -79,24 +103,35 @@ export function TokenSender() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    if (accounts.length === 0) return null;
+    if (!sesionAzure && !sesionCognito) return null;
+
+    const origen = sesionAzure ? 'Azure Entra ID' : 'AWS Cognito';
 
     return (
         <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f9f9f9', border: '1px solid #ddd', borderRadius: '6px' }}>
             <h3>Prueba de envío de Token al Backend</h3>
             <p style={{ fontSize: '14px', color: '#555' }}>
-                Haz clic para obtener tu Token JWT de Azure y enviarlo en el header <code style={{ background: '#eee', padding: '2px 4px' }}>Authorization: Bearer &lt;token&gt;</code>.
+                Haz clic para obtener tu Token JWT de {origen} y enviarlo en el header <code style={{ background: '#eee', padding: '2px 4px' }}>Authorization: Bearer &lt;token&gt;</code>.
             </p>
+
+            {sesionCognito && (
+                <p style={{ fontSize: '13px', color: '#605e5c' }}>
+                    El access token de Cognito no incluye el claim <code>roles</code>, asi que el backend
+                    le asigna el rol <code>Usuario</code> por defecto. Por eso <code>/admin</code> responde
+                    403 y el resto sí funciona.
+                </p>
+            )}
 
             {/* CORREGIDO: Se usa una función flecha () => handleGetTokenAndCallApi(...) en cada botón */}
             <button
                 onClick={() => handleGetTokenAndCallApi("admin")}
-                disabled={loading}
-                style={buttonStyle}
+                disabled={loading || (sesionCognito && !sesionAzure)}
+                title={sesionCognito ? 'Requiere el rol Administrador' : ''}
+                style={{ ...buttonStyle, opacity: sesionCognito && !sesionAzure ? 0.5 : 1 }}
             >
                 {loading ? "Obteniendo Token..." : "Consultar al admin"}
             </button>
-            
+
             <button
                 onClick={() => handleGetTokenAndCallApi("usuario")}
                 disabled={loading}
@@ -155,13 +190,7 @@ export function TokenSender() {
 
 // Estilo auxiliar para no repetir código en los botones
 const buttonStyle = {
-    backgroundColor: '#107c10',
-    color: 'white',
-    border: 'none',
-    padding: '10px 18px',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: '600',
-    marginTop: '10px',
-    marginRight: '8px'
+    backgroundColor: '#107c10', color: 'white', border: 'none',
+    padding: '10px 18px', borderRadius: '4px', cursor: 'pointer',
+    fontWeight: '600', marginTop: '10px', marginRight: '8px'
 };
