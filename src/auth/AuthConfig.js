@@ -61,7 +61,7 @@ export const cognitoLogoutUri = "http://localhost:5173";
 // navegador, invalida la sesion en Cognito. Es el equivalente al logoutRedirect
 // de MSAL, por eso no hace falta ninguna libreria para disparar la salida.
 export const signOutRedirect = () => {
-    const clientId = "56t4jmnrbmllfp93n818329lq8";
+    const clientId = "6guec3g1r44qonqo1ambjd9885"; // Corregido para coincidir con cognitoAuthConfig.client_id
     const logoutUri = cognitoLogoutUri;
     window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
 };

@@ -4,7 +4,7 @@ import { useMsal } from "@azure/msal-react";
 import { useAuth } from "react-oidc-context";
 import { apiRequest } from "./auth/AuthConfig";
 
-const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:8080/api/v1";
+const backendUrl = import.meta.env.VITE_API_URL || "https://xw1u6wcr66.execute-api.us-east-1.amazonaws.com/desarrollo";
 
 export function TokenSender() {
     const { instance, accounts } = useMsal();
